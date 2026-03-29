@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Portal - Dark Mode</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial;}
+body{
+    background:#121212;
+    color:#f1f1f1;
+}
+.container{width:90%;margin:auto;overflow:hidden;}
+nav{
+    background:#1f1f1f;
+    color:#f1f1f1;
+    padding:10px;
+}
+nav ul{list-style:none;display:flex;}
+nav ul li{
+    margin-right:20px;
+    cursor:pointer;
+    color:#f1f1f1;
+}
+nav ul li:hover{color:#0af;}
+section{
+    display:none;
+    padding:20px;
+    background:#1e1e1e;
+    margin-top:10px;
+    border-radius:5px;
+}
+section.active{display:block;}
+label{display:block;margin-top:10px;}
+input, textarea{
+    width:100%;
+    padding:8px;
+    margin-top:5px;
+    border:1px solid #555;
+    border-radius:3px;
+    background:#121212;
+    color:#f1f1f1;
+}
+button{
+    background:#333;
+    color:#f1f1f1;
+    padding:10px;
+    border:none;
+    cursor:pointer;
+    margin-top:10px;
+}
+button:hover{background:#555;}
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+}
+th,td{
+    border:1px solid #555;
+    padding:8px;
+    text-align:left;
+}
+th{background:#222;}
+h2,h3{margin-bottom:10px;}
+p{margin:5px 0;}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- LOGIN -->
+<section id="login" class="active">
+<h2>Login</h2>
+<label>Username / Roll</label><input type="text" id="loginUser">
+<label>Password</label><input type="password" id="loginPass">
+<button onclick="login()">Login</button>
+</section>
+
+<!-- NAV MENU -->
+<nav id="menu" style="display:none;">
+<ul id="navList"></ul>
+</nav>
+
+<!-- DASHBOARD -->
+<section id="dashboard">
+<h2>Welcome, <span id="studentName"></span></h2>
+<button onclick="logout()">Logout</button>
+<div id="dashboardContent"></div>
+</section>
+
+<!-- TEACHER: ADD STUDENT -->
+<section id="addStudent">
+<h2>Add Student</h2>
+<label>Roll</label><input type="text" id="stRoll">
+<label>Name</label><input type="text" id="stName">
+<label>Course</label><input type="text" id="stCourse">
+<label>Password</label><input type="text" id="stPass">
+<button onclick="addStudent()">Save Student</button>
+<div id="addMsg"></div>
+</section>
+
+<!-- TEACHER: ADD MARKS -->
+<section id="marks">
+<h2>Enter Marks</h2>
+<label>Student Roll</label><input type="text" id="markRoll">
+<label>Internal Marks</label><input type="text" id="markValue">
+<button onclick="addMark()">Save Marks</button>
+<h3>All Marks</h3>
+<table><thead><tr><th>Roll</th><th>Name</th><th>Marks</th></tr></thead>
+<tbody id="marksList"></tbody></table>
+</section>
+
+<!-- TEACHER: ATTENDANCE -->
+<section id="attendance">
+<h2>Enter Attendance</h2>
+<label>Student Roll</label><input type="text" id="attRoll">
+<label>Status (Present/Absent)</label><input type="text" id="attStatus">
+<button onclick="addAttendance()">Save Attendance</button>
+<h3>All Attendance</h3>
+<table><thead><tr><th>Roll</th><th>Status</th></tr></thead>
+<tbody id="attList"></tbody></table>
+</section>
+
+<!-- TEACHER: COMPLAINTS -->
+<section id="complaints">
+<h2>Enter Complaints</h2>
+<label>Student Roll</label><input type="text" id="compRoll">
+<label>Complaint</label><textarea id="compText"></textarea>
+<button onclick="addComplaint()">Save Complaint</button>
+<h3>All Complaints</h3>
+<table><thead><tr><th>Roll</th><th>Complaint</th></tr></thead>
+<tbody id="compList"></tbody></table>
+</section>
+
+<script>
+// ===== STORAGE HELPERS =====
+function getList(key){ return JSON.parse(localStorage.getItem(key))||[]; }
+function saveList(key,list){ localStorage.setItem(key,JSON.stringify(list)); }
+
+// ===== LOGIN =====
+function login(){
+  const u=document.getElementById("loginUser").value;
+  const p=document.getElementById("loginPass").value;
+
+  // Teacher login
+  if(u==="admin" && p==="1234"){
+    showMenu(["Dashboard","Add Student","Marks","Attendance","Complaints","Logout"]);
+    showSection("dashboard");
+    loadData();
+  } else {
+    // Student login
+    const students=getList("students");
+    const student=students.find(s=>s.roll===u && s.password===p);
+    if(student){
+      showMenu(["Dashboard","Logout"]);
+      showSection("dashboard");
+      showStudentDashboard(student.roll);
+    } else alert("Invalid login!");
+  }
+}
+
+// ===== SHOW MENU =====
+function showMenu(items){
+  const nav=document.getElementById("menu");
+  const ul=document.getElementById("navList");
+  ul.innerHTML="";
+  items.forEach(i=>{
+    const li=document.createElement("li");
+    li.innerText=i;
+    li.onclick=function(){
+      if(i==="Logout"){ location.reload(); }
+      else if(i==="Dashboard"){ showSection("dashboard"); }
+      else if(i==="Add Student"){ showSection("addStudent"); }
+      else if(i==="Marks"){ showSection("marks"); }
+      else if(i==="Attendance"){ showSection("attendance"); }
+      else if(i==="Complaints"){ showSection("complaints"); }
+    }
+    ul.appendChild(li);
+  });
+  nav.style.display="block";
+}
+
+// ===== SHOW SECTION =====
+function showSection(sec){
+  document.querySelectorAll("section").forEach(s=>s.classList.remove("active"));
+  document.getElementById(sec).classList.add("active");
+}
+
+// ===== TEACHER: ADD STUDENT =====
+function addStudent(){
+  const roll=document.getElementById("stRoll").value;
+  const name=document.getElementById("stName").value;
+  const course=document.getElementById("stCourse").value;
+  const password=document.getElementById("stPass").value;
+
+  let students=getList("students");
+  if(students.find(s=>s.roll===roll)){
+    alert("Student with this roll already exists!");
+    return;
+  }
+
+  students.push({roll,name,course,password});
+  saveList("students",students);
+  document.getElementById("addMsg").innerText="Student Saved!";
+  loadData();
+}
+
+// ===== TEACHER: ADD MARKS =====
+function addMark(){
+  const roll=document.getElementById("markRoll").value;
+  const marks=document.getElementById("markValue").value;
+  let m=getList("marks");
+  m=m.filter(x=>x.roll!==roll);
+  m.push({roll,marks});
+  saveList("marks",m);
+  loadData();
+}
+
+// ===== TEACHER: ATTENDANCE =====
+function addAttendance(){
+  const roll=document.getElementById("attRoll").value;
+  const status=document.getElementById("attStatus").value;
+  let a=getList("attendance");
+  a=a.filter(x=>x.roll!==roll);
+  a.push({roll,status});
+  saveList("attendance",a);
+  loadData();
+}
+
+// ===== TEACHER: COMPLAINTS =====
+function addComplaint(){
+  const roll=document.getElementById("compRoll").value;
+  const complaint=document.getElementById("compText").value;
+  let c=getList("complaints");
+  c=c.filter(x=>x.roll!==roll);
+  c.push({roll,complaint});
+  saveList("complaints",c);
+  loadData();
+}
+
+// ===== LOAD DATA FOR TEACHER =====
+function loadData(){
+  showMarksList();
+  showAttendanceList();
+  showComplaintsList();
+}
+
+// ===== TEACHER VIEWS =====
+function showMarksList(){
+  const m=getList("marks");
+  const students=getList("students");
+  let html="";
+  m.forEach(item=>{
+    const s=students.find(x=>x.roll===item.roll);
+    if(s) html+=`<tr><td>${item.roll}</td><td>${s.name}</td><td>${item.marks}</td></tr>`;
+  });
+  document.getElementById("marksList").innerHTML=html;
+}
+
+function showAttendanceList(){
+  const a=getList("attendance");
+  let html="";
+  a.forEach(x=>html+=`<tr><td>${x.roll}</td><td>${x.status}</td></tr>`);
+  document.getElementById("attList").innerHTML=html;
+}
+
+function showComplaintsList(){
+  const c=getList("complaints");
+  let html="";
+  c.forEach(x=>html+=`<tr><td>${x.roll}</td><td>${x.complaint}</td></tr>`);
+  document.getElementById("compList").innerHTML=html;
+}
+
+// ===== STUDENT DASHBOARD =====
+function showStudentDashboard(roll){
+  const students=getList("students");
+  const student=students.find(s=>s.roll===roll);
+  document.getElementById("studentName").innerText=student.name;
+
+  const studentMarks=getList("marks").find(m=>m.roll===roll);
+  const studentAttendance=getList("attendance").find(a=>a.roll===roll);
+  const studentComplaints=getList("complaints").find(c=>c.roll===roll);
+
+  let html=`<h3>Personal Details</h3>
+  <p>Roll: ${student.roll}</p>
+  <p>Name: ${student.name}</p>
+  <p>Course: ${student.course}</p>`;
+
+  html+=`<h3>Internal Marks</h3><p>${studentMarks ? studentMarks.marks : "N/A"}</p>`;
+  html+=`<h3>Attendance</h3><p>${studentAttendance ? studentAttendance.status : "N/A"}</p>`;
+  html+=`<h3>Complaints</h3><p>${studentComplaints ? studentComplaints.complaint : "None"}</p>`;
+
+  document.getElementById("dashboardContent").innerHTML=html;
+}
+
+// ===== LOGOUT =====
+function logout(){
+  document.getElementById("dashboard").style.display="none";
+  document.getElementById("login").style.display="block";
+  document.getElementById("loginUser").value="";
+  document.getElementById("loginPass").value="";
+}
+</script>
+</div>
+</body>
+</html>
